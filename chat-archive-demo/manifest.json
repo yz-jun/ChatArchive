@@ -1,0 +1,72 @@
+{
+  "manifest_version": 3,
+  "name": "ChatArchive v3",
+  "version": "3.4.3",
+  "description": "AI 对话工作存档插件 - 多模型总结 + TODO + 标签筛选（DeepSeek/Kimi/ChatGPT/Claude/千问/豆包/玻尔）",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://chat.deepseek.com/*",
+    "https://kimi.moonshot.cn/*",
+    "https://www.kimi.com/*",
+    "https://qianwen.com/*",
+    "https://www.qianwen.com/*",
+    "https://tongyi.aliyun.com/*",
+    "https://chat.qwen.ai/*",
+    "https://www.bohrium.com/*",
+    "https://www.doubao.com/*",
+    "https://doubao.com/*",
+    "https://api.deepseek.com/*",
+    "https://api.moonshot.cn/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
+    "https://dashscope.aliyuncs.com/*",
+    "https://ark.cn-beijing.volces.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://chat.deepseek.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://www.kimi.com/*",
+        "https://qianwen.com/*",
+        "https://www.qianwen.com/*",
+        "https://tongyi.aliyun.com/*",
+        "https://chat.qwen.ai/*",
+        "https://www.bohrium.com/*",
+        "https://www.doubao.com/*",
+        "https://doubao.com/*"
+      ],
+      "js": ["content.js"],
+      "css": [],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
