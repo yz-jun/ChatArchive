@@ -509,7 +509,7 @@ class ChatArchiveEngine {
       const modelId = result.selectedModel || 'deepseek';
       const apiKeys = result.apiKeys || {};
       const hasKey = !!apiKeys[modelId];
-      const names = { deepseek: 'DeepSeek', kimi: 'Kimi', chatgpt: 'ChatGPT', claude: 'Claude', qwen: '千问', doubao: '豆包' };
+      const names = { deepseek: 'DeepSeek', kimi: 'Kimi', chatgpt: 'ChatGPT', claude: 'Claude', qwen: '千问', doubao: '豆包', custom: '自定义' };
       this.selectedModelName = names[modelId] || modelId;
       const statusEl = this._getShadowElement('apiStatus');
       if (statusEl) {

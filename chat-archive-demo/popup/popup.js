@@ -14,6 +14,9 @@ const searchInput = $('searchInput');
 const filterTabs = $('filterTabs');
 const archiveList = $('archiveList');
 const tagCloud = $('tagCloud');
+const customConfig = $('customConfig');
+const customApiUrl = $('customApiUrl');
+const customModelName = $('customModelName');
 
 let allArchives = [];
 let allTodos = [];
@@ -24,6 +27,10 @@ let models = [];
 let selectedModel = 'deepseek';
 let apiKeys = {};
 let selectedPriority = 'medium';
+let customModelConfig = {
+  apiUrl: 'https://api.openai.com/v1/chat/completions',
+  modelName: 'gpt-4o-mini',
+};
 
 // ============================================================
 // 初始化
@@ -78,8 +85,20 @@ function renderModelTabs() {
       apiKeyInput.value = apiKeys[selectedModel] || '';
       updateKeyInfo();
       keyStatus.textContent = '';
+      toggleCustomConfig();
     });
   });
+}
+
+function toggleCustomConfig() {
+  const model = models.find(m => m.id === selectedModel);
+  if (model?.isCustom) {
+    customConfig.style.display = 'block';
+    customApiUrl.value = customModelConfig.apiUrl;
+    customModelName.value = customModelConfig.modelName;
+  } else {
+    customConfig.style.display = 'none';
+  }
 }
 
 function updateKeyInfo() {
@@ -104,9 +123,14 @@ async function loadSettings() {
     if (response) {
       selectedModel = response.selectedModel || 'deepseek';
       apiKeys = response.apiKeys || {};
+      customModelConfig = response.customModelConfig || {
+        apiUrl: 'https://api.openai.com/v1/chat/completions',
+        modelName: 'gpt-4o-mini',
+      };
       apiKeyInput.value = apiKeys[selectedModel] || '';
       renderModelTabs();
       updateKeyInfo();
+      toggleCustomConfig();
     }
   });
 }
@@ -119,7 +143,14 @@ async function saveSettings() {
     return;
   }
   apiKeys[selectedModel] = key;
-  chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', selectedModel, apiKeys }, (response) => {
+  
+  const model = models.find(m => m.id === selectedModel);
+  if (model?.isCustom) {
+    customModelConfig.apiUrl = customApiUrl.value.trim() || 'https://api.openai.com/v1/chat/completions';
+    customModelConfig.modelName = customModelName.value.trim() || 'gpt-4o-mini';
+  }
+  
+  chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', selectedModel, apiKeys, customModelConfig }, (response) => {
     if (response?.success) {
       keyStatus.textContent = '✅ 已保存！';
       keyStatus.style.color = '#27ae60';

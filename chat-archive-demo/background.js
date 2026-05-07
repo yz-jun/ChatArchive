@@ -96,6 +96,19 @@ const MODEL_CONFIG = {
     keyUrl: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',
     keyDesc: '新用户送额度',
   },
+  custom: {
+    name: '自定义 (OpenAI兼容)',
+    apiUrl: '',
+    model: '',
+    authHeader: (key) => `Bearer ${key}`,
+    buildBody: (model, messages) => JSON.stringify({ model, messages, temperature: 0.3, max_tokens: 500 }),
+    parseResponse: (data) => data.choices?.[0]?.message?.content || '',
+    keyPrefix: '',
+    keyHint: '任意格式 API Key',
+    keyUrl: '',
+    keyDesc: '支持 OneAPI/NewAPI 等中转服务',
+    isCustom: true,
+  },
 };
 
 // ============================================================
@@ -118,6 +131,11 @@ chrome.runtime.onInstalled.addListener(() => {
       claude: '',
       qwen: '',
       doubao: '',
+      custom: '',
+    },
+    customModelConfig: {
+      apiUrl: 'https://api.openai.com/v1/chat/completions',
+      modelName: 'gpt-4o-mini',
     },
   });
 });
@@ -136,10 +154,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'GET_SETTINGS':
-      chrome.storage.local.get(['selectedModel', 'apiKeys'], (result) => {
+      chrome.storage.local.get(['selectedModel', 'apiKeys', 'customModelConfig'], (result) => {
         sendResponse({
           selectedModel: result.selectedModel || 'deepseek',
           apiKeys: result.apiKeys || {},
+          customModelConfig: result.customModelConfig || {
+            apiUrl: 'https://api.openai.com/v1/chat/completions',
+            modelName: 'gpt-4o-mini',
+          },
         });
       });
       return true;
@@ -148,6 +170,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.storage.local.set({
         selectedModel: message.selectedModel,
         apiKeys: message.apiKeys,
+        customModelConfig: message.customModelConfig,
       }, () => {
         sendResponse({ success: true });
       });
@@ -222,10 +245,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ============================================================
 async function handleAICall(prompt, sendResponse) {
   try {
-    const result = await chrome.storage.local.get(['selectedModel', 'apiKeys']);
+    const result = await chrome.storage.local.get(['selectedModel', 'apiKeys', 'customModelConfig']);
     const modelId = result.selectedModel || 'deepseek';
     const apiKeys = result.apiKeys || {};
     const apiKey = apiKeys[modelId];
+    const customConfig = result.customModelConfig || {
+      apiUrl: 'https://api.openai.com/v1/chat/completions',
+      modelName: 'gpt-4o-mini',
+    };
 
     if (!apiKey) {
       const config = MODEL_CONFIG[modelId];
@@ -236,10 +263,18 @@ async function handleAICall(prompt, sendResponse) {
       return;
     }
 
-    const config = MODEL_CONFIG[modelId];
+    let config = MODEL_CONFIG[modelId];
     if (!config) {
       sendResponse({ success: false, error: `不支持的模型: ${modelId}` });
       return;
+    }
+
+    let apiUrl = config.apiUrl;
+    let modelName = config.model;
+    
+    if (config.isCustom) {
+      apiUrl = customConfig.apiUrl;
+      modelName = customConfig.modelName;
     }
 
     console.log(`[ChatArchive v3.4] 调用 ${config.name} API...`);
@@ -258,10 +293,10 @@ async function handleAICall(prompt, sendResponse) {
       Object.assign(headers, config.extraHeaders);
     }
 
-    const response = await fetch(config.apiUrl, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
-      body: config.buildBody(config.model, messages),
+      body: config.buildBody(modelName, messages),
     });
 
     if (!response.ok) {
@@ -294,10 +329,24 @@ async function handleAICall(prompt, sendResponse) {
 // ============================================================
 async function testApiKey(modelId, apiKey, sendResponse) {
   try {
+    const result = await chrome.storage.local.get('customModelConfig');
+    const customConfig = result.customModelConfig || {
+      apiUrl: 'https://api.openai.com/v1/chat/completions',
+      modelName: 'gpt-4o-mini',
+    };
+
     const config = MODEL_CONFIG[modelId];
     if (!config) {
       sendResponse({ success: false, error: '不支持的模型' });
       return;
+    }
+
+    let apiUrl = config.apiUrl;
+    let modelName = config.model;
+    
+    if (config.isCustom) {
+      apiUrl = customConfig.apiUrl;
+      modelName = customConfig.modelName;
     }
 
     const headers = {
@@ -306,10 +355,10 @@ async function testApiKey(modelId, apiKey, sendResponse) {
     };
     if (config.extraHeaders) Object.assign(headers, config.extraHeaders);
 
-    const response = await fetch(config.apiUrl, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers,
-      body: config.buildBody(config.model, [
+      body: config.buildBody(modelName, [
         { role: 'user', content: '请回复"OK"' },
       ]),
     });

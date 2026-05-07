@@ -289,6 +289,11 @@
         <button class="key-btn key-test" id="btnTest">测试</button>
         <button class="key-btn key-save" id="btnSave">保存</button>
       </div>
+      <div class="custom-config" id="customConfig" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid #e8ecf1;">
+        <div class="settings-label" style="margin-bottom:8px;">⚙️ 自定义 API 配置</div>
+        <input type="text" class="key-input" id="customApiUrl" placeholder="API 地址（如: https://api.example.com/v1/chat/completions）" style="margin-bottom:6px;">
+        <input type="text" class="key-input" id="customModelName" placeholder="模型名称（如: gpt-4o-mini）">
+      </div>
       <div class="key-status" id="keyStatus"></div>
       <div class="key-info" id="keyInfo"></div>
     </div>
