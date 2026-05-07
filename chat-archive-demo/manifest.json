@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatArchive v3",
-  "version": "3.4.3",
+  "version": "3.4.5",
   "description": "AI 对话工作存档插件 - 多模型总结 + TODO + 标签筛选（DeepSeek/Kimi/ChatGPT/Claude/千问/豆包/玻尔）",
   "permissions": [
     "storage",

@@ -85,26 +85,44 @@ const PLATFORM_ADAPTERS = {
   kimi: {
     name: 'Kimi',
     urlPattern: /kimi\.moonshot\.cn|www\.kimi\.com/,
-    selectors: { conversationList: '[class*="sidebar"] a, nav a, [class*="history"] a' },
+    selectors: { messageContainer: '[class*="message-item"], [class*="chat-item"], [class*="message-wrapper"]', conversationList: '[class*="sidebar"] a, nav a, [class*="history"] a' },
     extractMessages() {
       const msgs = [];
-      document.querySelectorAll('[class*="markdown"], [class*="message-content"], [class*="msg-content"], [class*="bubble"], [class*="chat-item"]').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 3) {
-          const isUser = el.closest('[class*="user"]') || el.closest('[class*="human"]')
-            || el.querySelector('[class*="avatar-user"]') || el.closest('[class*="is-user"]');
+      // 方法1：找消息容器
+      const messageSelectors = [
+        '[class*="message-item"]', '[class*="chat-item"]', '[class*="message-wrapper"]',
+        '[class*="conversation-item"]', '[data-role="user"]', '[data-role="assistant"]',
+        '[class*="message-list"] > div', '[class*="chat-list"] > div'
+      ];
+      for (const sel of messageSelectors) {
+        const elements = document.querySelectorAll(sel);
+        if (elements.length > 0) {
+          elements.forEach(el => {
+            const text = el.innerText?.trim();
+            if (!text || text.length < 2) return;
+            if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
+            const isUser = el.getAttribute('data-role') === 'user' 
+              || el.className?.includes('user') 
+              || el.className?.includes('human')
+              || el.querySelector('[class*="avatar-user"], [class*="user-avatar"]');
+            msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
+          });
+          if (msgs.length > 0) return msgs;
+        }
+      }
+      // 方法2：降级策略
+      const chatContainer = document.querySelector('[class*="chat-container"], [class*="message-list"], [class*="conversation-content"]');
+      if (chatContainer) {
+        const children = chatContainer.children;
+        for (const child of children) {
+          const text = child.innerText?.trim();
+          if (!text || text.length < 5 || text.length > 10000) continue;
+          if (child.closest('nav') || child.closest('[class*="sidebar"]')) continue;
+          const isUser = child.className?.includes('user') || child.querySelector('[class*="user"]');
           msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
         }
-      });
-      if (msgs.length > 0) return msgs;
-      // 降级
-      document.querySelectorAll('[class*="flex"][class*="gap"], [class*="chat"] div').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 10 && text.length < 50000) {
-          if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
-          msgs.push({ role: 'unknown', text, timestamp: Date.now() });
-        }
-      });
+        if (msgs.length > 0) return msgs;
+      }
       return msgs;
     },
     getConversationTitle() {
@@ -186,25 +204,46 @@ const PLATFORM_ADAPTERS = {
   qwen: {
     name: '千问',
     urlPattern: /qianwen\.com|www\.qianwen\.com|tongyi\.aliyun\.com|chat\.qwen\.ai/,
-    selectors: { conversationList: '[class*="sidebar"] a, nav a' },
+    selectors: { messageContainer: '[class*="message"][class*="item"], [class*="chat-item"], [class*="message-wrapper"]', conversationList: '[class*="sidebar"] a, nav a' },
     extractMessages() {
       const msgs = [];
-      document.querySelectorAll('[class*="markdown"], [class*="message-content"], [class*="msg-content"]').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 3) {
-          const isUser = el.closest('[class*="user"]') || el.closest('[class*="human"]')
-            || el.querySelector('[class*="avatar-user"]');
+      // 方法1：找消息容器（而不是内部的markdown元素）
+      const messageSelectors = [
+        '[class*="message-item"]', '[class*="chat-item"]', '[class*="message-wrapper"]',
+        '[class*="conversation-item"]', '[data-role="user"]', '[data-role="assistant"]',
+        '[class*="message-list"] > div', '[class*="chat-list"] > div'
+      ];
+      for (const sel of messageSelectors) {
+        const elements = document.querySelectorAll(sel);
+        if (elements.length > 0) {
+          elements.forEach(el => {
+            const text = el.innerText?.trim();
+            if (!text || text.length < 2) return;
+            // 排除侧边栏、导航等非消息元素
+            if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
+            // 判断角色
+            const isUser = el.getAttribute('data-role') === 'user' 
+              || el.className?.includes('user') 
+              || el.className?.includes('human')
+              || el.querySelector('[class*="avatar-user"], [class*="user-avatar"]');
+            msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
+          });
+          if (msgs.length > 0) return msgs;
+        }
+      }
+      // 方法2：降级策略 - 找对话区域的大块内容
+      const chatContainer = document.querySelector('[class*="chat-container"], [class*="message-list"], [class*="conversation-content"]');
+      if (chatContainer) {
+        const children = chatContainer.children;
+        for (const child of children) {
+          const text = child.innerText?.trim();
+          if (!text || text.length < 5 || text.length > 10000) continue;
+          if (child.closest('nav') || child.closest('[class*="sidebar"]')) continue;
+          const isUser = child.className?.includes('user') || child.querySelector('[class*="user"]');
           msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
         }
-      });
-      if (msgs.length > 0) return msgs;
-      document.querySelectorAll('[class*="flex"][class*="gap"], [class*="chat"] div').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 10 && text.length < 50000) {
-          if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
-          msgs.push({ role: 'unknown', text, timestamp: Date.now() });
-        }
-      });
+        if (msgs.length > 0) return msgs;
+      }
       return msgs;
     },
     getConversationTitle() {
@@ -225,25 +264,44 @@ const PLATFORM_ADAPTERS = {
   doubao: {
     name: '豆包',
     urlPattern: /www\.doubao\.com|doubao\.com/,
-    selectors: { conversationList: '[class*="sidebar"] a, nav a, [class*="history"] a' },
+    selectors: { messageContainer: '[class*="message-item"], [class*="chat-item"], [class*="message-wrapper"]', conversationList: '[class*="sidebar"] a, nav a, [class*="history"] a' },
     extractMessages() {
       const msgs = [];
-      document.querySelectorAll('[class*="markdown"], [class*="message-content"], [class*="msg-content"], [class*="bubble"]').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 3) {
-          const isUser = el.closest('[class*="user"]') || el.closest('[class*="human"]')
-            || el.querySelector('[class*="avatar-user"]');
+      // 方法1：找消息容器
+      const messageSelectors = [
+        '[class*="message-item"]', '[class*="chat-item"]', '[class*="message-wrapper"]',
+        '[class*="conversation-item"]', '[data-role="user"]', '[data-role="assistant"]',
+        '[class*="message-list"] > div', '[class*="chat-list"] > div'
+      ];
+      for (const sel of messageSelectors) {
+        const elements = document.querySelectorAll(sel);
+        if (elements.length > 0) {
+          elements.forEach(el => {
+            const text = el.innerText?.trim();
+            if (!text || text.length < 2) return;
+            if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
+            const isUser = el.getAttribute('data-role') === 'user'
+              || el.className?.includes('user')
+              || el.className?.includes('human')
+              || el.querySelector('[class*="avatar-user"], [class*="user-avatar"]');
+            msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
+          });
+          if (msgs.length > 0) return msgs;
+        }
+      }
+      // 方法2：降级策略
+      const chatContainer = document.querySelector('[class*="chat-container"], [class*="message-list"], [class*="conversation-content"]');
+      if (chatContainer) {
+        const children = chatContainer.children;
+        for (const child of children) {
+          const text = child.innerText?.trim();
+          if (!text || text.length < 5 || text.length > 10000) continue;
+          if (child.closest('nav') || child.closest('[class*="sidebar"]')) continue;
+          const isUser = child.className?.includes('user') || child.querySelector('[class*="user"]');
           msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
         }
-      });
-      if (msgs.length > 0) return msgs;
-      document.querySelectorAll('[class*="flex"][class*="gap"], [class*="chat"] div').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 10 && text.length < 50000) {
-          if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
-          msgs.push({ role: 'unknown', text, timestamp: Date.now() });
-        }
-      });
+        if (msgs.length > 0) return msgs;
+      }
       return msgs;
     },
     getConversationTitle() {
@@ -264,25 +322,44 @@ const PLATFORM_ADAPTERS = {
   bohrium: {
     name: '玻尔',
     urlPattern: /www\.bohrium\.com/,
-    selectors: { conversationList: '[class*="sidebar"] a, nav a, [class*="history"] a, [class*="chat-list"] a' },
+    selectors: { messageContainer: '[class*="message-item"], [class*="chat-item"], [class*="message-wrapper"]', conversationList: '[class*="sidebar"] a, nav a, [class*="history"] a, [class*="chat-list"] a' },
     extractMessages() {
       const msgs = [];
-      document.querySelectorAll('[class*="markdown"], [class*="message-content"], [class*="msg-content"], [class*="bubble"], [class*="chat-message"]').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 3) {
-          const isUser = el.closest('[class*="user"]') || el.closest('[class*="human"]')
-            || el.querySelector('[class*="avatar-user"]') || el.closest('[data-role="user"]');
+      // 方法1：找消息容器
+      const messageSelectors = [
+        '[class*="message-item"]', '[class*="chat-item"]', '[class*="message-wrapper"]',
+        '[class*="conversation-item"]', '[data-role="user"]', '[data-role="assistant"]',
+        '[class*="message-list"] > div', '[class*="chat-list"] > div'
+      ];
+      for (const sel of messageSelectors) {
+        const elements = document.querySelectorAll(sel);
+        if (elements.length > 0) {
+          elements.forEach(el => {
+            const text = el.innerText?.trim();
+            if (!text || text.length < 2) return;
+            if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
+            const isUser = el.getAttribute('data-role') === 'user'
+              || el.className?.includes('user')
+              || el.className?.includes('human')
+              || el.querySelector('[class*="avatar-user"], [class*="user-avatar"]');
+            msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
+          });
+          if (msgs.length > 0) return msgs;
+        }
+      }
+      // 方法2：降级策略
+      const chatContainer = document.querySelector('[class*="chat-container"], [class*="message-list"], [class*="conversation-content"]');
+      if (chatContainer) {
+        const children = chatContainer.children;
+        for (const child of children) {
+          const text = child.innerText?.trim();
+          if (!text || text.length < 5 || text.length > 10000) continue;
+          if (child.closest('nav') || child.closest('[class*="sidebar"]')) continue;
+          const isUser = child.className?.includes('user') || child.querySelector('[class*="user"]');
           msgs.push({ role: isUser ? 'user' : 'assistant', text, timestamp: Date.now() });
         }
-      });
-      if (msgs.length > 0) return msgs;
-      document.querySelectorAll('[class*="flex"][class*="gap"], [class*="chat"] div').forEach(el => {
-        const text = el.innerText?.trim();
-        if (text && text.length > 10 && text.length < 50000) {
-          if (el.closest('nav') || el.closest('[class*="sidebar"]') || el.closest('[class*="header"]')) return;
-          msgs.push({ role: 'unknown', text, timestamp: Date.now() });
-        }
-      });
+        if (msgs.length > 0) return msgs;
+      }
       return msgs;
     },
     getConversationTitle() {
